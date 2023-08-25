@@ -1,1 +1,3 @@
 # React-Native-Test
+
+initialized
