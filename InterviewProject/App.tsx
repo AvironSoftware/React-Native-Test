@@ -205,13 +205,19 @@ function App(): JSX.Element {
               />
             </Section>
             <Section title="See Your Changes">
-              <ReloadInstructions />
+              <Text>
+                In the sample dropdown, an item moves to the top of the list
+                after closing and opening
+              </Text>
             </Section>
             <Section title="Debug">
-              <DebugInstructions />
+              <Text>
+                Refactor so that the item moves to the top of the list upon
+                selection
+              </Text>
             </Section>
-            <Section title="Learn More">
-              Read the docs to discover what to do next:
+            <Section title="Completion">
+              Submit a PR to the repo once complete
             </Section>
             <LearnMoreLinks />
           </View>
