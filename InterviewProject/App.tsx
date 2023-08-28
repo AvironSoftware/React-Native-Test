@@ -19,10 +19,8 @@ import {
 
 import {
   Colors,
-  DebugInstructions,
   Header,
   LearnMoreLinks,
-  ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 import DropDown from './src/components/dropdown';
 import {PaperProvider} from 'react-native-paper';
