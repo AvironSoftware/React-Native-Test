@@ -6,7 +6,6 @@
  */
 
 import React, {useState} from 'react';
-import type {PropsWithChildren} from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -16,18 +15,14 @@ import {
   useColorScheme,
   View,
 } from 'react-native';
-
 import {
   Colors,
   Header,
   LearnMoreLinks,
 } from 'react-native/Libraries/NewAppScreen';
-import DropDown from './src/components/dropdown';
 import {PaperProvider} from 'react-native-paper';
-
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+import DropDown from './src/components/dropdown';
+import {SectionProps} from './src/lib/types';
 
 function Section({children, title}: SectionProps): JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';

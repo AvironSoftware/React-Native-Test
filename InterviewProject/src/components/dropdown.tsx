@@ -1,10 +1,13 @@
-import React, {useState, useEffect} from 'react';
-import styles from './dropdownStyle';
-import {Text, TouchableOpacity, View} from 'react-native';
+import React, {useState, useEffect, FC, memo} from 'react';
+import {Text, View} from 'react-native';
+import {debounce} from 'lodash';
 import DropDownPicker from 'react-native-dropdown-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FIcon from 'react-native-vector-icons/Feather';
-import {Checkbox} from 'react-native-paper';
+
+import {DropDownProps, Item} from '../lib/types';
+import ItemDisplay from './itemDisplay';
+import styles from './dropdownStyle';
 
 const defaultIcon = () => {
   return <Icon name="chevron-down" size={26} color="#3B94DB" />;
@@ -32,91 +35,7 @@ const renderTickIcon = () => {
   );
 };
 
-const ListItem = (props: any) => {
-  const {
-    multiSelect,
-    handleSingleChange,
-    handleValueChange,
-    handleSelectAll,
-    val,
-    item,
-    isSelectAllActive,
-    hideCheckboxExtraOption,
-  } = props;
-  let valueToChange = multiSelect ? [] : {};
-  let isSelected = false;
-  if (multiSelect) {
-    if (val && typeof item.value !== 'object') {
-      if (val?.includes(item.value)) {
-        valueToChange = val.filter((i: any) => i !== item.value);
-        isSelected = true;
-      } else {
-        valueToChange = val.concat(item);
-      }
-    } else {
-      valueToChange = [item];
-    }
-  } else {
-    valueToChange = item;
-    isSelected = val === item.value;
-  }
-  const handlePress = () => {
-    if (item.value === -1 && multiSelect) {
-      return handleSelectAll();
-    }
-    if (item.value === -1 && !multiSelect) {
-      return handleSingleChange(valueToChange);
-    }
-    return multiSelect
-      ? handleValueChange(valueToChange)
-      : handleSingleChange(valueToChange);
-  };
-
-  const hideCheckbox = hideCheckboxExtraOption && item.value === -1;
-  return (
-    <TouchableOpacity
-      style={
-        item?.parent
-          ? [styles.dropdownListItem, {marginLeft: 30}]
-          : styles.dropdownListItem
-      }
-      onPress={() => handlePress()}>
-      {!hideCheckbox ? (
-        <Checkbox.Android
-          status={
-            (item.value !== -1 ? isSelected : isSelectAllActive)
-              ? 'checked'
-              : 'unchecked'
-          }
-        />
-      ) : (
-        <></>
-      )}
-      <View style={styles.flexOne}>
-        <Text style={styles.dropdownListItemLabel}>{item.label}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-type DropDownProps = {
-  value: any;
-  onChangeValue: (selectedValue: any) => void;
-  placeholder: string;
-  list: any;
-  searchable: boolean;
-  disabled?: boolean;
-  modalTitle: string;
-  multiSelect?: boolean;
-  hideDefaultPlaceholder?: boolean;
-  label?: string;
-  mode?: 'MODAL' | 'FLATLIST';
-  noClear?: boolean;
-  renderListItem?: any;
-  hideCheckboxExtraOption?: boolean;
-};
-
-const DropDown: React.FC<DropDownProps> = ({
+const DropDown: FC<DropDownProps> = ({
   value,
   onChangeValue,
   placeholder,
@@ -128,20 +47,28 @@ const DropDown: React.FC<DropDownProps> = ({
   hideCheckboxExtraOption = false,
   hideDefaultPlaceholder = false,
 }) => {
-  const [open, setOpen] = useState(false);
-  const [val, setValue] = useState(value ? value : []);
-  const [items, setItems] = useState(list);
-  const [isSelectAllActive, setIsSelectAllActive] = useState(false);
+  const [open, setOpen] = useState<boolean>(false);
+  const [val, setValue] = useState<string[] | any>(value ? value : []);
+  const [items, setItems] = useState<Item[]>(list);
+  const [isSelectAllActive, setIsSelectAllActive] = useState<boolean>(false);
 
-  const handleValueChange = (item: any) => {
-    const values = item
-      .map((i: any) => (i.value ? i.value : i))
-      .filter((i: number) => i !== -1);
-    if (isSelectAllActive && item.value !== -1) {
+  const valueChange = (selectedItems: Item[]) => {
+    const selectedValues = selectedItems.map((item: Item) =>
+      item.value ? item.value : item,
+    );
+
+    if (isSelectAllActive && selectedValues.includes(-1)) {
       setIsSelectAllActive(false);
     }
-    onChangeValue(values);
+    onChangeValue(selectedValues);
+    setValue(selectedValues);
+    reorderSelectedItems();
   };
+
+  /* I've added debounce just to
+   * prevent spamming of checking/unchecking
+   */
+  const handleValueChange = debounce(valueChange, 500);
 
   const handleSingleChange = (item: any) => {
     const v = item.value;
@@ -150,14 +77,22 @@ const DropDown: React.FC<DropDownProps> = ({
   };
 
   const handleSelectAll = () => {
-    setIsSelectAllActive(true);
-    setValue([]);
+    if (isSelectAllActive === true) {
+      setIsSelectAllActive(false);
+      setValue([]);
+    } else if (isSelectAllActive === false) {
+      setIsSelectAllActive(true);
+      handleValueChange(items);
+    }
   };
 
+  /*
+   * this is the function that makes newly selected/checked
+   * item to be moved to the top of the list.
+   */
   const reorderSelectedItems = () => {
     let updatedItems: any = [...items];
     const selectedItems = Array.isArray(value) ? value : [value];
-
     selectedItems.forEach((selectedItem: number) => {
       const index = updatedItems.findIndex(
         (i: any) => i.value === selectedItem,
@@ -171,7 +106,6 @@ const DropDown: React.FC<DropDownProps> = ({
 
     if (multiSelect) {
       updatedItems = updatedItems.filter((i: any) => i.value !== -1);
-
       if (updatedItems.findIndex((i: any) => i.value === -1) === -1) {
         updatedItems.unshift({value: -1, label: 'Select All'});
       }
@@ -180,30 +114,55 @@ const DropDown: React.FC<DropDownProps> = ({
     setItems(updatedItems);
   };
 
+  /*
+   * modified the handleDropdownClose function to show all
+   * items selected on the output if "select all" is checked
+   */
   const handleDropdownClose = () => {
     if (multiSelect) {
-      if (isSelectAllActive) {
-        setValue([]);
-        onChangeValue([]);
-      } else {
-        setValue(val?.filter((i: any) => i !== -1));
-        onChangeValue(val?.filter((i: any) => i !== -1));
-      }
+      setValue(val?.filter((i: any) => i !== -1));
+      onChangeValue(val?.filter((i: any) => i !== -1));
     }
     return;
   };
 
+  /*
+   * this will act as a checker if
+   * "select all" item is selected
+   * then we will highlight the selected all item
+   */
+  useEffect(() => {
+    try {
+      if (val && list) {
+        if (val.length === list.length - 1) {
+          setIsSelectAllActive(true);
+        } else {
+          setIsSelectAllActive(false);
+        }
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }, [list, val]);
+
+  /*
+   * this is used to trigger the reorder of the selected items
+   * - added val to its dependencies
+   */
   useEffect(() => {
     if (open) {
       reorderSelectedItems();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, val]);
 
+  /*
+   * I think this is used to sync val
+   * state with the incoming value prop
+   */
   useEffect(() => {
     if ((Array.isArray(value) && value.length === 0) || value === -1) {
       setValue([]);
-      setIsSelectAllActive(true);
     } else {
       if (Array.isArray(value) && value.includes(-1)) {
         setValue(value.filter(i => i !== -1));
@@ -213,12 +172,10 @@ const DropDown: React.FC<DropDownProps> = ({
     }
   }, [value]);
 
-  useEffect(() => {
-    if (value === undefined && multiSelect) {
-      setIsSelectAllActive(true);
-    }
-  }, [value, multiSelect]);
-
+  /*
+   * I believe this is used to prepend the "Select All"
+   * option to the list.
+   */
   useEffect(() => {
     if (list && multiSelect) {
       if (list.findIndex((i: any) => i.value === -1) === -1) {
@@ -226,15 +183,6 @@ const DropDown: React.FC<DropDownProps> = ({
       }
     }
   }, [list, multiSelect]);
-
-  useEffect(() => {
-    if (Array.isArray(value)) {
-      if (value.length > 0 && value.includes(-1)) {
-        onChangeValue(value.filter(i => i !== -1));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
 
   return (
     <View style={styles.dropDownMainContainer}>
@@ -275,7 +223,6 @@ const DropDown: React.FC<DropDownProps> = ({
         flatListProps={{keyboardShouldPersistTaps: 'handled'}}
         disabledStyle={styles.opacity50P}
         ArrowDownIconComponent={defaultIcon}
-        onSelectItem={multiSelect ? handleValueChange : handleSingleChange}
         labelProps={{
           maxFontSizeMultiplier: 1.7,
         }}
@@ -293,10 +240,10 @@ const DropDown: React.FC<DropDownProps> = ({
           customProps.multiSelect = multiSelect;
           customProps.val = val;
           customProps.hideCheckboxExtraOption = hideCheckboxExtraOption;
-          return <ListItem {...customProps} />;
+          return <ItemDisplay {...customProps} />;
         }}
       />
     </View>
   );
 };
-export default DropDown;
+export default memo(DropDown);
