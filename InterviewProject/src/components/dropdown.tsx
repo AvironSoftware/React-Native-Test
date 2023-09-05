@@ -194,13 +194,7 @@ const DropDown: React.FC<DropDownProps> = ({
   };
 
   useEffect(() => {
-    if (open) {
-      reorderSelectedItems();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  useEffect(() => {
+    reorderSelectedItems();
     if ((Array.isArray(value) && value.length === 0) || value === -1) {
       setValue([]);
       setIsSelectAllActive(true);
@@ -217,24 +211,8 @@ const DropDown: React.FC<DropDownProps> = ({
     if (value === undefined && multiSelect) {
       setIsSelectAllActive(true);
     }
-  }, [value, multiSelect]);
+  },[]);
 
-  useEffect(() => {
-    if (list && multiSelect) {
-      if (list.findIndex((i: any) => i.value === -1) === -1) {
-        list.unshift({value: -1, label: 'Select All'});
-      }
-    }
-  }, [list, multiSelect]);
-
-  useEffect(() => {
-    if (Array.isArray(value)) {
-      if (value.length > 0 && value.includes(-1)) {
-        onChangeValue(value.filter(i => i !== -1));
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
 
   return (
     <View style={styles.dropDownMainContainer}>
